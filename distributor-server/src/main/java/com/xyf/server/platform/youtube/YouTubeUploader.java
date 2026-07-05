@@ -1,5 +1,9 @@
 package com.xyf.server.platform.youtube;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xyf.server.common.BusinessException;
+import com.xyf.server.common.constants.BizConstants;
+import com.xyf.server.common.constants.ErrorCode;
 import com.xyf.server.domain.PlatformAccount;
 import com.xyf.server.domain.VideoMeta;
 import com.xyf.server.log.DigestLogger;
@@ -12,22 +16,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-/**
- * YouTube Resumable Upload 实现
- * <p>
- * 使用 YouTube Data API v3 的 Resumable Upload 机制：
- * 1. POST 初始化上传 → 获取 upload URI
- * 2. PUT 分片上传 → 流式分片 (10MB chunks)
- * 3. 上传完成即为发布（YouTube 无需额外 publish 步骤）
- */
 @Component
 public class YouTubeUploader implements PlatformUploader {
 
     private static final Logger log = LoggerFactory.getLogger(YouTubeUploader.class);
     private static final String YOUTUBE_UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status";
-    private static final int CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final TokenEncryptService tokenEncryptService;
     private final OkHttpClient httpClient;
@@ -53,28 +51,27 @@ public class YouTubeUploader implements PlatformUploader {
         try {
             String accessToken = tokenEncryptService.decrypt(account.getAccessToken());
 
-            // 构建视频元数据 JSON
-            String metadata = String.format("""
-                {
-                  "snippet": {
-                    "title": "%s",
-                    "description": "%s",
-                    "categoryId": "22"
-                  },
-                  "status": {
-                    "privacyStatus": "private"
-                  }
-                }
-                """, escapeJson(video.getTitle()),
-                    escapeJson(video.getDescription() != null ? video.getDescription() : ""));
+            Map<String, Object> snippet = new LinkedHashMap<>();
+            snippet.put("title", video.getTitle());
+            snippet.put("description", video.getDescription() != null ? video.getDescription() : "");
+            snippet.put("categoryId", BizConstants.YOUTUBE_CATEGORY_PEOPLE_BLOGS);
+
+            Map<String, Object> status = new LinkedHashMap<>();
+            status.put("privacyStatus", BizConstants.YOUTUBE_PRIVACY_PRIVATE);
+
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("snippet", snippet);
+            metadata.put("status", status);
+
+            String metadataJson = OBJECT_MAPPER.writeValueAsString(metadata);
 
             Request request = new Request.Builder()
                     .url(YOUTUBE_UPLOAD_URL)
                     .header("Authorization", "Bearer " + accessToken)
                     .header("Content-Type", "application/json; charset=UTF-8")
                     .header("X-Upload-Content-Length", String.valueOf(video.getFileSize()))
-                    .header("X-Upload-Content-Type", "video/" + (video.getFileFormat() != null ? video.getFileFormat() : "mp4"))
-                    .post(RequestBody.create(metadata, MediaType.parse("application/json")))
+                    .header("X-Upload-Content-Type", "video/" + (video.getFileFormat() != null ? video.getFileFormat() : BizConstants.DEFAULT_VIDEO_FORMAT))
+                    .post(RequestBody.create(metadataJson, MediaType.parse("application/json")))
                     .build();
 
             try (Response response = httpClient.newCall(request).execute()) {
@@ -83,16 +80,20 @@ public class YouTubeUploader implements PlatformUploader {
 
                 if (!response.isSuccessful()) {
                     String body = response.body() != null ? response.body().string() : "";
-                    throw new RuntimeException("YouTube initUpload failed: " + response.code() + " - " + body);
+                    throw new BusinessException(ErrorCode.YOUTUBE_INIT_UPLOAD_FAILED,
+                            "YouTube initUpload failed: " + response.code() + " - " + body);
                 }
 
                 String uploadUri = response.header("Location");
                 log.info("YouTube upload session initialized: uri={}", uploadUri);
                 return new UploadSession(uploadUri, null, video.getFileSize());
             }
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             DigestLogger.logYouTube("initUpload", 0, System.currentTimeMillis() - start, "ERROR:" + e.getMessage());
-            throw new RuntimeException("YouTube initUpload error: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.YOUTUBE_INIT_UPLOAD_ERROR,
+                    "YouTube initUpload error: " + e.getMessage(), e);
         } finally {
             TraceContext.popSpan();
         }
@@ -133,10 +134,8 @@ public class YouTubeUploader implements PlatformUploader {
                         "range=" + contentRange);
 
                 if (response.code() == 308) {
-                    // 308 Resume Incomplete - 还有更多 chunk
                     return new UploadResult(true, offset + chunkSize, null);
                 } else if (response.isSuccessful()) {
-                    // 200/201 = 上传完成
                     return new UploadResult(true, totalSize, null);
                 } else {
                     String respBody = response.body() != null ? response.body().string() : "";
@@ -153,33 +152,22 @@ public class YouTubeUploader implements PlatformUploader {
 
     @Override
     public long queryProgress(UploadSession session) {
-        // YouTube uses Content-Range header to query progress
-        // For simplicity, return 0 (caller tracks via UploadResult)
         return 0;
     }
 
     @Override
     public PublishResult waitForPublish(UploadSession session, long timeoutMs) {
-        // YouTube: upload completion = published (no extra step needed)
         return new PublishResult(true, session.platformVideoId(), "https://youtube.com/watch?v=" + session.platformVideoId(), null);
     }
 
     @Override
     public TokenPair refreshToken(String encryptedRefreshToken) {
-        // TODO: Call Google OAuth token endpoint to refresh
-        // POST https://oauth2.googleapis.com/token with refresh_token
         log.warn("YouTube token refresh not yet implemented");
         return new TokenPair("refreshed-access-token", encryptedRefreshToken, 3600);
     }
 
     @Override
     public boolean validateToken(String accessToken) {
-        // Simple check: token is not null/empty
         return accessToken != null && !accessToken.isBlank();
-    }
-
-    private String escapeJson(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 }

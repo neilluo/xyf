@@ -28,15 +28,18 @@ public class TokenEncryptService {
 
     private final SecretKey secretKey;
 
-    public TokenEncryptService(@Value("${token.encrypt.key:}") String keyBase64) {
+    public TokenEncryptService(@Value("${token.encrypt.key:}") String keyBase64,
+                               @Value("${spring.profiles.active:dev}") String activeProfile) {
         if (keyBase64 != null && !keyBase64.isBlank()) {
             byte[] keyBytes = Base64.getDecoder().decode(keyBase64);
             this.secretKey = new SecretKeySpec(keyBytes, "AES");
-        } else {
-            // 开发模式：使用固定密钥（仅用于本地测试）
+        } else if (activeProfile.contains("dev") || activeProfile.contains("local") || activeProfile.contains("test")) {
             log.warn("TOKEN_ENCRYPT_KEY not set, using dev key (NOT for production!)");
             byte[] devKey = "01234567890123456789012345678901".getBytes(StandardCharsets.UTF_8);
             this.secretKey = new SecretKeySpec(devKey, "AES");
+        } else {
+            throw new IllegalStateException(
+                    "TOKEN_ENCRYPT_KEY must be set in non-dev environment. Generate with: openssl rand -base64 32");
         }
     }
 
@@ -62,7 +65,8 @@ public class TokenEncryptService {
 
             return Base64.getEncoder().encodeToString(result);
         } catch (Exception e) {
-            throw new RuntimeException("Encryption failed", e);
+            throw new com.xyf.server.common.BusinessException(
+                    com.xyf.server.common.constants.ErrorCode.TOKEN_ENCRYPT_FAILED, "Encryption failed", e);
         }
     }
 
@@ -86,7 +90,8 @@ public class TokenEncryptService {
             byte[] plainText = cipher.doFinal(cipherText);
             return new String(plainText, StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new RuntimeException("Decryption failed", e);
+            throw new com.xyf.server.common.BusinessException(
+                    com.xyf.server.common.constants.ErrorCode.TOKEN_DECRYPT_FAILED, "Decryption failed", e);
         }
     }
 }

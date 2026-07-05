@@ -2,13 +2,12 @@ package com.xyf.server.domain;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import com.xyf.server.domain.enums.PlatformType;
+import com.xyf.server.domain.enums.TaskStatus;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
-/**
- * 分发任务实体
- */
 @TableName(value = "distribution_task", autoResultMap = true)
 public class DistributionTask {
 
@@ -19,13 +18,11 @@ public class DistributionTask {
 
     private Long videoId;
 
-    /** 目标平台: YOUTUBE|TIKTOK */
-    private String platform;
+    private PlatformType platform;
 
     private Long accountId;
 
-    /** 状态: PENDING|UPLOADING|PROCESSING|SUCCESS|FAILED */
-    private String status;
+    private TaskStatus status;
 
     private Integer retryCount;
 
@@ -39,13 +36,10 @@ public class DistributionTask {
 
     private String errorMessage;
 
-    /** 平台返回的视频ID/URL */
     private String platformVideoId;
 
-    /** 断点续传会话URI */
     private String uploadSessionUri;
 
-    /** 已上传字节数 */
     private Long uploadOffset;
 
     @TableField(typeHandler = JacksonTypeHandler.class)
@@ -55,15 +49,14 @@ public class DistributionTask {
     private Map<String, Object> extInfo;
 
     @TableLogic
-    private Integer isDeleted;
+    @TableField("is_deleted")
+    private Integer deleted;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
-
-    // --- Getters and Setters ---
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -74,14 +67,14 @@ public class DistributionTask {
     public Long getVideoId() { return videoId; }
     public void setVideoId(Long videoId) { this.videoId = videoId; }
 
-    public String getPlatform() { return platform; }
-    public void setPlatform(String platform) { this.platform = platform; }
+    public PlatformType getPlatform() { return platform; }
+    public void setPlatform(PlatformType platform) { this.platform = platform; }
 
     public Long getAccountId() { return accountId; }
     public void setAccountId(Long accountId) { this.accountId = accountId; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public TaskStatus getStatus() { return status; }
+    public void setStatus(TaskStatus status) { this.status = status; }
 
     public Integer getRetryCount() { return retryCount; }
     public void setRetryCount(Integer retryCount) { this.retryCount = retryCount; }
@@ -116,8 +109,8 @@ public class DistributionTask {
     public Map<String, Object> getExtInfo() { return extInfo; }
     public void setExtInfo(Map<String, Object> extInfo) { this.extInfo = extInfo; }
 
-    public Integer getIsDeleted() { return isDeleted; }
-    public void setIsDeleted(Integer isDeleted) { this.isDeleted = isDeleted; }
+    public Integer getDeleted() { return deleted; }
+    public void setDeleted(Integer deleted) { this.deleted = deleted; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

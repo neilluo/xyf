@@ -7,6 +7,8 @@ import com.aliyuncs.DefaultAcsClient;
 import com.aliyuncs.auth.sts.AssumeRoleRequest;
 import com.aliyuncs.auth.sts.AssumeRoleResponse;
 import com.aliyuncs.profile.DefaultProfile;
+import com.xyf.server.common.BusinessException;
+import com.xyf.server.common.constants.ErrorCode;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -15,13 +17,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
 
-/**
- * OSS 存储服务
- * <p>
- * 职责：
- * 1. 生成 STS 临时凭证（给 CLI 上传用）
- * 2. 通过内网读取 OSS 对象（给服务端分发任务用）
- */
 @Service
 public class OssStorageService {
 
@@ -38,7 +33,6 @@ public class OssStorageService {
     public void init() {
         String accessKeyId = ossProperties.getAccessKeyId();
         if (ossProperties.getEndpoint() != null && accessKeyId != null && !accessKeyId.isBlank()) {
-            // 使用内网 endpoint 读取（服务端在新加坡 ECS，走内网）
             String endpoint = ossProperties.getInternalEndpoint() != null
                     ? ossProperties.getInternalEndpoint()
                     : ossProperties.getEndpoint();
@@ -60,9 +54,6 @@ public class OssStorageService {
         }
     }
 
-    /**
-     * 生成 STS 临时凭证，仅允许 PutObject 到指定前缀
-     */
     public StsCredentials generateStsToken(String sessionName) {
         try {
             DefaultProfile profile = DefaultProfile.getProfile(
@@ -77,7 +68,6 @@ public class OssStorageService {
             request.setRoleSessionName(sessionName);
             request.setDurationSeconds((long) ossProperties.getStsDurationSeconds());
 
-            // 限制 Policy：仅允许 PutObject 到指定前缀
             String policy = String.format("""
                 {
                   "Version": "1",
@@ -104,41 +94,30 @@ public class OssStorageService {
                     ossProperties.getUploadPrefix()
             );
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate STS token: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.OSS_STS_TOKEN_FAILED,
+                    "Failed to generate STS token: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * 流式读取 OSS 对象（内网访问）
-     *
-     * @param ossKey 对象 Key
-     * @return InputStream（调用者负责关闭）
-     */
     public InputStream getObjectStream(String ossKey) {
-        if (ossClient == null) {
-            throw new IllegalStateException("OSS client not initialized");
-        }
+        ensureClientInitialized();
         OSSObject object = ossClient.getObject(ossProperties.getBucket(), ossKey);
         return object.getObjectContent();
     }
 
-    /**
-     * 检查对象是否存在
-     */
     public boolean doesObjectExist(String ossKey) {
-        if (ossClient == null) {
-            throw new IllegalStateException("OSS client not initialized");
-        }
+        ensureClientInitialized();
         return ossClient.doesObjectExist(ossProperties.getBucket(), ossKey);
     }
 
-    /**
-     * 获取对象大小
-     */
     public long getObjectSize(String ossKey) {
-        if (ossClient == null) {
-            throw new IllegalStateException("OSS client not initialized");
-        }
+        ensureClientInitialized();
         return ossClient.getObjectMetadata(ossProperties.getBucket(), ossKey).getContentLength();
+    }
+
+    private void ensureClientInitialized() {
+        if (ossClient == null) {
+            throw new BusinessException(ErrorCode.OSS_CLIENT_NOT_INITIALIZED, "OSS client not initialized");
+        }
     }
 }

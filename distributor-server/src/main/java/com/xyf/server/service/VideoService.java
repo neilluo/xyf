@@ -3,6 +3,9 @@ package com.xyf.server.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xyf.server.common.BusinessException;
+import com.xyf.server.common.constants.BizConstants;
+import com.xyf.server.common.constants.ErrorCode;
+import com.xyf.server.controller.dto.CreateVideoRequest;
 import com.xyf.server.domain.VideoMeta;
 import com.xyf.server.log.TraceContext;
 import com.xyf.server.mapper.VideoMetaMapper;
@@ -13,9 +16,6 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * 视频服务
- */
 @Service
 public class VideoService {
 
@@ -27,43 +27,44 @@ public class VideoService {
         this.ossStorageService = ossStorageService;
     }
 
-    /**
-     * 注册视频元数据
-     */
-    public VideoMeta createVideo(VideoMeta video) {
-        // 注入 traceId 到 ext_info
-        Map<String, Object> extInfo = video.getExtInfo() != null ? new HashMap<>(video.getExtInfo()) : new HashMap<>();
+    public VideoMeta createVideo(CreateVideoRequest request) {
+        VideoMeta video = new VideoMeta();
+        video.setUserId(BizConstants.DEFAULT_USER_ID);
+        video.setTitle(request.getTitle());
+        video.setDescription(request.getDescription());
+        video.setTags(request.getTags());
+        video.setCategory(request.getCategory());
+        video.setOssBucket(request.getOssBucket());
+        video.setOssKey(request.getOssKey());
+        video.setOssRegion(request.getOssRegion());
+        video.setFileSize(request.getFileSize());
+        video.setFileFormat(request.getFileFormat());
+        video.setDurationSeconds(request.getDurationSeconds());
+        video.setResolution(request.getResolution());
+        video.setThumbnailOssKey(request.getThumbnailOssKey());
+
+        Map<String, Object> extInfo = new HashMap<>(4);
         extInfo.put("traceId", TraceContext.getTraceId());
         video.setExtInfo(extInfo);
 
-        video.setUserId(1L); // 单用户
         videoMetaMapper.insert(video);
         return video;
     }
 
-    /**
-     * 获取视频详情
-     */
     public VideoMeta getVideo(Long id) {
         VideoMeta video = videoMetaMapper.selectById(id);
         if (video == null) {
-            throw new BusinessException("VIDEO_NOT_FOUND", "Video not found: " + id);
+            throw new BusinessException(ErrorCode.VIDEO_NOT_FOUND, "Video not found: " + id);
         }
         return video;
     }
 
-    /**
-     * 分页列出视频
-     */
     public IPage<VideoMeta> listVideos(int page, int size) {
-        size = Math.min(size, 100);
+        size = Math.min(size, BizConstants.PAGE_SIZE_MAX);
         Page<VideoMeta> pageParam = new Page<>(page, size);
         return videoMetaMapper.selectPage(pageParam, null);
     }
 
-    /**
-     * 获取 STS 上传凭证
-     */
     public StsCredentials getUploadToken() {
         return ossStorageService.generateStsToken("cli-upload-" + System.currentTimeMillis());
     }

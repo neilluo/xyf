@@ -63,6 +63,12 @@ public class GlobalExceptionHandler {
         return ApiResponse.fail("NOT_FOUND", "Resource not found");
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleIllegalArgument(IllegalArgumentException e) {
+        return ApiResponse.fail("ILLEGAL_ARGUMENT", e.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleUnknown(Exception e) {

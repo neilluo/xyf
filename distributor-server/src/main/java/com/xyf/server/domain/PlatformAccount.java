@@ -3,13 +3,12 @@ package com.xyf.server.domain;
 import com.baomidou.mybatisplus.annotation.*;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.xyf.server.domain.enums.AccountStatus;
+import com.xyf.server.domain.enums.PlatformType;
 
 import java.time.LocalDateTime;
 import java.util.Map;
 
-/**
- * 平台账号配置实体
- */
 @TableName(value = "platform_account", autoResultMap = true)
 public class PlatformAccount {
 
@@ -18,22 +17,18 @@ public class PlatformAccount {
 
     private Long userId;
 
-    /** 平台: YOUTUBE|TIKTOK */
-    private String platform;
+    private PlatformType platform;
 
     private String accountName;
 
-    /** 访问令牌(加密存储) - 不序列化到API响应 */
     @JsonIgnore
     private String accessToken;
 
-    /** 刷新令牌(加密存储) - 不序列化到API响应 */
     @JsonIgnore
     private String refreshToken;
 
     private LocalDateTime tokenExpiresAt;
 
-    /** YouTube频道ID / TikTok open_id */
     private String channelId;
 
     @TableField(typeHandler = JacksonTypeHandler.class)
@@ -42,12 +37,10 @@ public class PlatformAccount {
     @TableField(typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> extInfo;
 
-    /** 软删除：NULL=未删除，非NULL=删除时间戳 */
     @TableLogic(value = "NULL", delval = "NOW()")
     private LocalDateTime deletedAt;
 
-    /** 状态: ACTIVE|EXPIRED|REVOKED */
-    private String status;
+    private AccountStatus status;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
@@ -55,16 +48,14 @@ public class PlatformAccount {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 
-    // --- Getters and Setters ---
-
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
 
-    public String getPlatform() { return platform; }
-    public void setPlatform(String platform) { this.platform = platform; }
+    public PlatformType getPlatform() { return platform; }
+    public void setPlatform(PlatformType platform) { this.platform = platform; }
 
     public String getAccountName() { return accountName; }
     public void setAccountName(String accountName) { this.accountName = accountName; }
@@ -90,8 +81,8 @@ public class PlatformAccount {
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public AccountStatus getStatus() { return status; }
+    public void setStatus(AccountStatus status) { this.status = status; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

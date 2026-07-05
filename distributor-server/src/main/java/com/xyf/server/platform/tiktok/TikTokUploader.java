@@ -2,6 +2,9 @@ package com.xyf.server.platform.tiktok;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xyf.server.common.BusinessException;
+import com.xyf.server.common.constants.BizConstants;
+import com.xyf.server.common.constants.ErrorCode;
 import com.xyf.server.domain.PlatformAccount;
 import com.xyf.server.domain.VideoMeta;
 import com.xyf.server.log.DigestLogger;
@@ -14,23 +17,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-/**
- * TikTok Content Posting API v2 (FILE_UPLOAD 模式) 实现
- * <p>
- * 流程：
- * 1. POST /v2/post/publish/video/init/ → 获取 upload_url + publish_id
- * 2. PUT upload_url 分片上传（5-64MB chunks）
- * 3. POST /v2/post/publish/status/fetch/ → 轮询发布状态
- */
 @Component
 public class TikTokUploader implements PlatformUploader {
 
     private static final Logger log = LoggerFactory.getLogger(TikTokUploader.class);
     private static final String TIKTOK_API_BASE = "https://open.tiktokapis.com";
-    private static final int CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final TokenEncryptService tokenEncryptService;
     private final OkHttpClient httpClient;
@@ -56,30 +52,30 @@ public class TikTokUploader implements PlatformUploader {
         try {
             String accessToken = tokenEncryptService.decrypt(account.getAccessToken());
 
-            String body = String.format("""
-                {
-                  "post_info": {
-                    "title": "%s",
-                    "privacy_level": "SELF_ONLY"
-                  },
-                  "source_info": {
-                    "source": "FILE_UPLOAD",
-                    "video_size": %d,
-                    "chunk_size": %d,
-                    "total_chunk_count": %d
-                  }
-                }
-                """,
-                    escapeJson(video.getTitle()),
-                    video.getFileSize(),
-                    CHUNK_SIZE,
-                    (video.getFileSize() + CHUNK_SIZE - 1) / CHUNK_SIZE);
+            int chunkSize = BizConstants.UPLOAD_CHUNK_SIZE;
+            long totalChunks = (video.getFileSize() + chunkSize - 1) / chunkSize;
+
+            Map<String, Object> postInfo = new LinkedHashMap<>();
+            postInfo.put("title", video.getTitle());
+            postInfo.put("privacy_level", BizConstants.TIKTOK_PRIVACY_SELF_ONLY);
+
+            Map<String, Object> sourceInfo = new LinkedHashMap<>();
+            sourceInfo.put("source", "FILE_UPLOAD");
+            sourceInfo.put("video_size", video.getFileSize());
+            sourceInfo.put("chunk_size", chunkSize);
+            sourceInfo.put("total_chunk_count", totalChunks);
+
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("post_info", postInfo);
+            payload.put("source_info", sourceInfo);
+
+            String bodyJson = OBJECT_MAPPER.writeValueAsString(payload);
 
             Request request = new Request.Builder()
                     .url(TIKTOK_API_BASE + "/v2/post/publish/video/init/")
                     .header("Authorization", "Bearer " + accessToken)
                     .header("Content-Type", "application/json; charset=UTF-8")
-                    .post(RequestBody.create(body, MediaType.parse("application/json")))
+                    .post(RequestBody.create(bodyJson, MediaType.parse("application/json")))
                     .build();
 
             try (Response response = httpClient.newCall(request).execute()) {
@@ -88,19 +84,23 @@ public class TikTokUploader implements PlatformUploader {
                         response.isSuccessful() ? "OK" : "FAIL");
 
                 if (!response.isSuccessful()) {
-                    throw new RuntimeException("TikTok initUpload failed: " + response.code() + " - " + respBody);
+                    throw new BusinessException(ErrorCode.TIKTOK_INIT_UPLOAD_FAILED,
+                            "TikTok initUpload failed: " + response.code() + " - " + respBody);
                 }
 
-                JsonNode json = MAPPER.readTree(respBody);
+                JsonNode json = OBJECT_MAPPER.readTree(respBody);
                 String publishId = json.path("data").path("publish_id").asText();
                 String uploadUrl = json.path("data").path("upload_url").asText();
 
                 log.info("TikTok upload session initialized: publishId={}", publishId);
                 return new UploadSession(uploadUrl, publishId, video.getFileSize());
             }
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             DigestLogger.logTikTok("videoInit", 0, System.currentTimeMillis() - start, "ERROR");
-            throw new RuntimeException("TikTok initUpload error: " + e.getMessage(), e);
+            throw new BusinessException(ErrorCode.TIKTOK_INIT_UPLOAD_ERROR,
+                    "TikTok initUpload error: " + e.getMessage(), e);
         } finally {
             TraceContext.popSpan();
         }
@@ -163,13 +163,10 @@ public class TikTokUploader implements PlatformUploader {
 
     @Override
     public PublishResult waitForPublish(UploadSession session, long timeoutMs) {
-        // 轮询 TikTok 发布状态
         long deadline = System.currentTimeMillis() + timeoutMs;
         while (System.currentTimeMillis() < deadline) {
             try {
-                Thread.sleep(5000); // 每5秒轮询
-                // TODO: POST /v2/post/publish/status/fetch/ with publish_id
-                // 简化：假设上传完成即发布成功
+                Thread.sleep(BizConstants.PUBLISH_POLL_INTERVAL_MS);
                 log.info("TikTok publish status check: publishId={}", session.platformVideoId());
                 return new PublishResult(true, session.platformVideoId(),
                         "https://www.tiktok.com/@user/video/" + session.platformVideoId(), null);
@@ -190,10 +187,5 @@ public class TikTokUploader implements PlatformUploader {
     @Override
     public boolean validateToken(String accessToken) {
         return accessToken != null && !accessToken.isBlank();
-    }
-
-    private String escapeJson(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 }

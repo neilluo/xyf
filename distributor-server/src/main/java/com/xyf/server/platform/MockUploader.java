@@ -24,7 +24,8 @@ public class MockUploader implements PlatformUploader {
     @Override
     public UploadSession initUpload(VideoMeta video, PlatformAccount account) {
         log.info("MockUploader: initUpload for video={}", video.getTitle());
-        return new UploadSession("mock-session-" + System.currentTimeMillis(), null, video.getFileSize());
+        long totalSize = video.getFileSize() != null ? video.getFileSize() : 0L;
+        return new UploadSession("mock-session-" + System.currentTimeMillis(), null, totalSize);
     }
 
     @Override

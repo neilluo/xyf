@@ -1,35 +1,31 @@
-package com.xyf.server.domain;
+package com.xyf.server.controller.dto;
 
-import com.baomidou.mybatisplus.annotation.*;
-import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
-@TableName(value = "video_meta", autoResultMap = true)
-public class VideoMeta {
+public class CreateVideoRequest {
 
-    @TableId(type = IdType.AUTO)
-    private Long id;
-
-    private Long userId;
-
+    @NotBlank(message = "title cannot be blank")
     private String title;
 
     private String description;
 
-    @TableField(typeHandler = JacksonTypeHandler.class)
     private List<String> tags;
 
     private String category;
 
+    @NotBlank(message = "ossBucket cannot be blank")
     private String ossBucket;
 
+    @NotBlank(message = "ossKey cannot be blank")
     private String ossKey;
 
+    @NotBlank(message = "ossRegion cannot be blank")
     private String ossRegion;
 
+    @NotNull(message = "fileSize cannot be null")
     private Long fileSize;
 
     private String fileFormat;
@@ -39,25 +35,6 @@ public class VideoMeta {
     private String resolution;
 
     private String thumbnailOssKey;
-
-    @TableField(typeHandler = JacksonTypeHandler.class)
-    private Map<String, Object> extInfo;
-
-    @TableLogic
-    @TableField("is_deleted")
-    private Integer deleted;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createdAt;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedAt;
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -94,16 +71,4 @@ public class VideoMeta {
 
     public String getThumbnailOssKey() { return thumbnailOssKey; }
     public void setThumbnailOssKey(String thumbnailOssKey) { this.thumbnailOssKey = thumbnailOssKey; }
-
-    public Map<String, Object> getExtInfo() { return extInfo; }
-    public void setExtInfo(Map<String, Object> extInfo) { this.extInfo = extInfo; }
-
-    public Integer getDeleted() { return deleted; }
-    public void setDeleted(Integer deleted) { this.deleted = deleted; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

@@ -1,14 +1,9 @@
 package com.xyf.server.log;
 
 import java.net.InetAddress;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * EagleEye 风格 30 位 traceId 生成器
- * <p>
- * 格式：IP(8位hex) + 时间戳(13位) + 自增(4位) + PID(2位hex) + 随机(3位hex)
- * 示例：0a1b2c3d1719821234567000100ab1
- */
 public class EagleEyeIdGenerator {
 
     private static final String IP_HEX;
@@ -20,16 +15,13 @@ public class EagleEyeIdGenerator {
         PID_HEX = getPidHex();
     }
 
-    /**
-     * 生成 30 位 traceId
-     */
     public static String generate() {
         StringBuilder sb = new StringBuilder(30);
-        sb.append(IP_HEX);                                          // 8位
-        sb.append(System.currentTimeMillis());                      // 13位
-        sb.append(String.format("%04d", COUNTER.incrementAndGet() % 10000)); // 4位
-        sb.append(PID_HEX);                                         // 2位
-        sb.append(String.format("%03x", (int) (Math.random() * 4096))); // 3位
+        sb.append(IP_HEX);
+        sb.append(System.currentTimeMillis());
+        sb.append(String.format("%04d", COUNTER.incrementAndGet() % 10000));
+        sb.append(PID_HEX);
+        sb.append(String.format("%03x", ThreadLocalRandom.current().nextInt(4096)));
         return sb.toString();
     }
 
