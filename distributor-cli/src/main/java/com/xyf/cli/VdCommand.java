@@ -1,6 +1,9 @@
 package com.xyf.cli;
 
 import com.xyf.cli.command.ConfigCommand;
+import com.xyf.cli.command.PublishCommand;
+import com.xyf.cli.command.TaskCommand;
+import com.xyf.cli.command.UploadCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
@@ -16,7 +19,10 @@ import picocli.CommandLine.Command;
     description = "视频分发平台 CLI - 上传视频并分发到 YouTube/TikTok",
     subcommands = {
         CommandLine.HelpCommand.class,
-        ConfigCommand.class
+        ConfigCommand.class,
+        UploadCommand.class,
+        PublishCommand.class,
+        TaskCommand.class
     }
 )
 public class VdCommand implements Runnable {
