@@ -23,7 +23,8 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
                         "/actuator/**",
-                        "/api/v1/auth/*/callback"  // OAuth 回调不需要认证
+                        "/api/v1/auth/*/callback",     // OAuth 回调
+                        "/api/v1/auth/*/authorize-url"  // OAuth 授权入口（浏览器直接访问）
                 );
     }
 }
