@@ -45,11 +45,6 @@ spring:
 
 # MyBatis-Plus
 mybatis-plus:
-  global-config:
-    db-config:
-      logic-delete-field: isDeleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
   configuration:
     map-underscore-to-camel-case: true
 

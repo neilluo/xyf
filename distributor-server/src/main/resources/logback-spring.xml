@@ -99,6 +99,8 @@
         <appender-ref ref="ERROR_FILE"/>
     </appender>
 
+    <!-- Access log: neverBlock=true 保护应用线程不被日志IO阻塞
+         trade-off: 队列满时会丢弃日志（单用户低流量场景不会触发） -->
     <appender name="ASYNC_ACCESS" class="ch.qos.logback.classic.AsyncAppender">
         <queueSize>1024</queueSize>
         <discardingThreshold>0</discardingThreshold>
