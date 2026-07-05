@@ -123,6 +123,11 @@ public class OssStorageService {
 
     private void ensureClientInitialized() {
         if (ossClient == null) {
+            // 懒初始化：@PostConstruct 时 DynamicConfigService 可能还没加载 DB 配置
+            // 首次实际调用时重试初始化
+            init();
+        }
+        if (ossClient == null) {
             throw new BusinessException(ErrorCode.OSS_CLIENT_NOT_INITIALIZED, "OSS client not initialized");
         }
     }
