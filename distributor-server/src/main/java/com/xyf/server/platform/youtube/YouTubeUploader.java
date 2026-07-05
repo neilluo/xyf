@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xyf.server.common.BusinessException;
 import com.xyf.server.common.constants.BizConstants;
 import com.xyf.server.common.constants.ErrorCode;
+import com.xyf.server.config.DynamicConfigService;
 import com.xyf.server.domain.PlatformAccount;
 import com.xyf.server.domain.VideoMeta;
 import com.xyf.server.log.DigestLogger;
@@ -28,10 +29,12 @@ public class YouTubeUploader implements PlatformUploader {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final TokenEncryptService tokenEncryptService;
+    private final DynamicConfigService configService;
     private final OkHttpClient httpClient;
 
-    public YouTubeUploader(TokenEncryptService tokenEncryptService) {
+    public YouTubeUploader(TokenEncryptService tokenEncryptService, DynamicConfigService configService) {
         this.tokenEncryptService = tokenEncryptService;
+        this.configService = configService;
         this.httpClient = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(120, TimeUnit.SECONDS)
@@ -161,9 +164,53 @@ public class YouTubeUploader implements PlatformUploader {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public TokenPair refreshToken(String encryptedRefreshToken) {
-        log.warn("YouTube token refresh not yet implemented");
-        return new TokenPair("refreshed-access-token", encryptedRefreshToken, 3600);
+        long start = System.currentTimeMillis();
+        TraceContext.pushSpan();
+        try {
+            String refreshToken = tokenEncryptService.decrypt(encryptedRefreshToken);
+            String clientId = configService.get("OAUTH_YOUTUBE", "client_id");
+            String clientSecret = configService.get("OAUTH_YOUTUBE", "client_secret");
+
+            RequestBody body = new FormBody.Builder()
+                    .add("client_id", clientId)
+                    .add("client_secret", clientSecret)
+                    .add("refresh_token", refreshToken)
+                    .add("grant_type", "refresh_token")
+                    .build();
+
+            Request request = new Request.Builder()
+                    .url("https://oauth2.googleapis.com/token")
+                    .post(body)
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                DigestLogger.logYouTube("refreshToken", response.code(), System.currentTimeMillis() - start,
+                        response.isSuccessful() ? "OK" : "FAIL");
+
+                String respBody = response.body() != null ? response.body().string() : "";
+                if (!response.isSuccessful()) {
+                    throw new BusinessException(ErrorCode.YOUTUBE_TOKEN_REFRESH_FAILED,
+                            "YouTube token refresh failed: " + response.code() + " - " + respBody);
+                }
+
+                Map<String, Object> json = OBJECT_MAPPER.readValue(respBody, Map.class);
+                String newAccessToken = (String) json.get("access_token");
+                Number expiresIn = (Number) json.get("expires_in");
+
+                String encryptedAccessToken = tokenEncryptService.encrypt(newAccessToken);
+                return new TokenPair(encryptedAccessToken, null, expiresIn.longValue());
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            DigestLogger.logYouTube("refreshToken", 0, System.currentTimeMillis() - start, "ERROR:" + e.getMessage());
+            throw new BusinessException(ErrorCode.YOUTUBE_TOKEN_REFRESH_FAILED,
+                    "YouTube token refresh error: " + e.getMessage(), e);
+        } finally {
+            TraceContext.popSpan();
+        }
     }
 
     @Override

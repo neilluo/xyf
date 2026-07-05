@@ -2,7 +2,6 @@ package com.xyf.server.scheduler;
 
 import com.xyf.server.common.BusinessException;
 import com.xyf.server.common.constants.BizConstants;
-import com.xyf.server.common.constants.ErrorCode;
 import com.xyf.server.domain.DistributionTask;
 import com.xyf.server.domain.PlatformAccount;
 import com.xyf.server.domain.VideoMeta;
@@ -12,7 +11,6 @@ import com.xyf.server.mapper.DistributionTaskMapper;
 import com.xyf.server.platform.PlatformUploader;
 import com.xyf.server.service.TaskService;
 import com.xyf.server.service.VideoService;
-import com.xyf.server.service.auth.OAuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -69,11 +67,13 @@ public class DistributionOrchestrator {
                 return;
             }
 
-            if (account.getAccessToken() != null && !uploader.validateToken(account.getAccessToken())) {
-                log.info("Token expired, refreshing...");
+            if (account.getTokenExpiresAt() != null && account.getTokenExpiresAt().isBefore(LocalDateTime.now().plusMinutes(5))) {
+                log.info("Token expired or expiring soon, refreshing...");
                 PlatformUploader.TokenPair newToken = uploader.refreshToken(account.getRefreshToken());
                 account.setAccessToken(newToken.accessToken());
-                account.setRefreshToken(newToken.refreshToken());
+                if (newToken.refreshToken() != null) {
+                    account.setRefreshToken(newToken.refreshToken());
+                }
                 account.setTokenExpiresAt(LocalDateTime.now().plusSeconds(newToken.expiresInSeconds()));
                 taskService.updateAccount(account);
             }

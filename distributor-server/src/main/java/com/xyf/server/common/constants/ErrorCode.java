@@ -13,6 +13,7 @@ public final class ErrorCode {
 
     public static final String YOUTUBE_INIT_UPLOAD_FAILED = "YOUTUBE_INIT_UPLOAD_FAILED";
     public static final String YOUTUBE_INIT_UPLOAD_ERROR = "YOUTUBE_INIT_UPLOAD_ERROR";
+    public static final String YOUTUBE_TOKEN_REFRESH_FAILED = "YOUTUBE_TOKEN_REFRESH_FAILED";
     public static final String TIKTOK_INIT_UPLOAD_FAILED = "TIKTOK_INIT_UPLOAD_FAILED";
     public static final String TIKTOK_INIT_UPLOAD_ERROR = "TIKTOK_INIT_UPLOAD_ERROR";
     public static final String OSS_STS_TOKEN_FAILED = "OSS_STS_TOKEN_FAILED";
