@@ -19,4 +19,5 @@ public final class ErrorCode {
     public static final String OSS_CLIENT_NOT_INITIALIZED = "OSS_CLIENT_NOT_INITIALIZED";
     public static final String TOKEN_ENCRYPT_FAILED = "TOKEN_ENCRYPT_FAILED";
     public static final String TOKEN_DECRYPT_FAILED = "TOKEN_DECRYPT_FAILED";
+    public static final String OAUTH_TOKEN_EXCHANGE_FAILED = "OAUTH_TOKEN_EXCHANGE_FAILED";
 }
