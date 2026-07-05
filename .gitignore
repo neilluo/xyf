@@ -1,0 +1,28 @@
+# Build
+target/
+*.jar
+!.mvn/wrapper/*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env & Secrets
+.env
+.deploy_key
+.deploy_key.pub
+deploy/.env
+
+# Logs
+logs/
+*.log
+
+# Research files (large)
+video-distribution-platform-research.md
