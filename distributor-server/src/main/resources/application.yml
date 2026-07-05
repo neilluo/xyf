@@ -11,7 +11,7 @@ spring:
     name: video-distributor
 
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:video_distributor}?useUnicode=true&characterEncoding=utf8mb4&useSSL=false&serverTimezone=Asia/Singapore&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:video_distributor}?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Singapore&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
