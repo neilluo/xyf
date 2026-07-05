@@ -2,6 +2,7 @@ package com.xyf.server.domain;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -22,10 +23,12 @@ public class PlatformAccount {
 
     private String accountName;
 
-    /** 访问令牌(加密存储) */
+    /** 访问令牌(加密存储) - 不序列化到API响应 */
+    @JsonIgnore
     private String accessToken;
 
-    /** 刷新令牌(加密存储) */
+    /** 刷新令牌(加密存储) - 不序列化到API响应 */
+    @JsonIgnore
     private String refreshToken;
 
     private LocalDateTime tokenExpiresAt;
@@ -38,6 +41,9 @@ public class PlatformAccount {
 
     @TableField(typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> extInfo;
+
+    @TableLogic
+    private Integer isDeleted;
 
     /** 状态: ACTIVE|EXPIRED|REVOKED */
     private String status;
@@ -79,6 +85,9 @@ public class PlatformAccount {
 
     public Map<String, Object> getExtInfo() { return extInfo; }
     public void setExtInfo(Map<String, Object> extInfo) { this.extInfo = extInfo; }
+
+    public Integer getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Integer isDeleted) { this.isDeleted = isDeleted; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

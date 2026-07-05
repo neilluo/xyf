@@ -88,7 +88,7 @@
     <!-- Async wrappers -->
     <appender name="ASYNC_APP" class="ch.qos.logback.classic.AsyncAppender">
         <queueSize>1024</queueSize>
-        <discardingThreshold>0</discardingThreshold>
+        <discardingThreshold>256</discardingThreshold>
         <includeCallerData>false</includeCallerData>
         <appender-ref ref="APP_FILE"/>
     </appender>
@@ -101,7 +101,7 @@
 
     <appender name="ASYNC_ACCESS" class="ch.qos.logback.classic.AsyncAppender">
         <queueSize>1024</queueSize>
-        <discardingThreshold>0</discardingThreshold>
+        <discardingThreshold>256</discardingThreshold>
         <appender-ref ref="ACCESS_FILE"/>
     </appender>
 
