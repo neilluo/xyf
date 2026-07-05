@@ -1,6 +1,11 @@
 server:
   port: 8080
 
+# API Key 认证
+vd:
+  admin:
+    api-key: ${VD_ADMIN_API_KEY:}
+
 spring:
   application:
     name: video-distributor
