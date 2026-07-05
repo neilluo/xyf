@@ -37,7 +37,7 @@ public class MockUploader implements PlatformUploader {
             Thread.currentThread().interrupt();
         }
         log.info("MockUploader: uploadChunk offset={}, chunkSize={}", offset, chunkSize);
-        return new UploadResult(true, offset + chunkSize, null);
+        return new UploadResult(true, offset + chunkSize, null, null);
     }
 
     @Override

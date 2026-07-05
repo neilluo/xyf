@@ -31,3 +31,18 @@ extInfo.put("source", "api-create");
 **Do**: OAuth token存储前AES-256-GCM加密，从DB读取后解密
 **Don't**: 明文存储token，或把解密后的token写入日志
 **Self-check**: log输出中搜索不到任何token值，DB中token字段是密文
+
+## Mock实现必须标记TODO
+**Do**: 骨架代码中的mock方法用 `// TODO: replace with real implementation` 标注，并在集成测试前替换
+**Don't**: 让mock方法（如返回假token、跳过真实API调用）进入生产部署
+**Self-check**: 搜索代码中的 "mock"、"pending_exchange_"、"fake-" 等关键词，确保无残留
+
+## 分发任务幂等性
+**Do**: 任务执行前检查 platformVideoId 是否已存在（结果凭证），存在则跳过上传
+**Don't**: 仅依赖 status 字段判断是否需要重新执行（status可被外部重置）
+**Self-check**: distribution_task 表中不存在 status=SUCCESS 但 platform_video_id=NULL 的记录
+
+## Bean初始化与配置加载顺序
+**Do**: 依赖DynamicConfigService(DB配置)的Bean使用懒初始化（首次调用时init）
+**Don't**: 在@PostConstruct中读取DB配置（此时ApplicationRunner可能还未执行）
+**Self-check**: 新增的@PostConstruct方法不依赖DynamicConfigService的返回值

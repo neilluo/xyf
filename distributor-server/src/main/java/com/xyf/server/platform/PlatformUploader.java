@@ -36,7 +36,7 @@ public interface PlatformUploader {
 
     record UploadSession(String sessionUri, String platformVideoId, long totalSize) {}
 
-    record UploadResult(boolean success, long uploadedBytes, String error) {}
+    record UploadResult(boolean success, long uploadedBytes, String error, String platformVideoId) {}
 
     record PublishResult(boolean success, String platformVideoId, String platformUrl, String error) {}
 

@@ -52,6 +52,15 @@ public class DistributionOrchestrator {
         log.info("Executing task id={}, platform={}, videoId={}", task.getId(), task.getPlatform(), task.getVideoId());
 
         try {
+            if (task.getPlatformVideoId() != null && !task.getPlatformVideoId().isBlank()) {
+                log.info("Task id={} already has platformVideoId={}, skipping duplicate upload",
+                        task.getId(), task.getPlatformVideoId());
+                task.setStatus(TaskStatus.SUCCESS);
+                task.setCompletedAt(LocalDateTime.now());
+                taskMapper.updateById(task);
+                return;
+            }
+
             VideoMeta video;
             try {
                 video = videoService.getVideo(task.getVideoId());
@@ -104,18 +113,26 @@ public class DistributionOrchestrator {
 
             task.setStatus(TaskStatus.PROCESSING);
             task.setUploadOffset(uploadResult.uploadedBytes());
+            if (uploadResult.platformVideoId() != null && !uploadResult.platformVideoId().isBlank()) {
+                task.setPlatformVideoId(uploadResult.platformVideoId());
+            }
             taskMapper.updateById(task);
 
-            PlatformUploader.PublishResult publishResult = uploader.waitForPublish(session, BizConstants.PUBLISH_TIMEOUT_MS);
-
-            if (publishResult.success()) {
+            if (task.getPlatformVideoId() != null && !task.getPlatformVideoId().isBlank()) {
                 task.setStatus(TaskStatus.SUCCESS);
-                task.setPlatformVideoId(publishResult.platformVideoId());
                 task.setCompletedAt(LocalDateTime.now());
-                log.info("Task completed successfully! platformVideoId={}", publishResult.platformVideoId());
+                log.info("Task completed successfully! platformVideoId={}", task.getPlatformVideoId());
             } else {
-                failTask(task, "Publish failed: " + publishResult.error());
-                return;
+                PlatformUploader.PublishResult publishResult = uploader.waitForPublish(session, BizConstants.PUBLISH_TIMEOUT_MS);
+                if (publishResult.success()) {
+                    task.setStatus(TaskStatus.SUCCESS);
+                    task.setPlatformVideoId(publishResult.platformVideoId());
+                    task.setCompletedAt(LocalDateTime.now());
+                    log.info("Task completed successfully! platformVideoId={}", publishResult.platformVideoId());
+                } else {
+                    failTask(task, "Publish failed: " + publishResult.error());
+                    return;
+                }
             }
 
             taskMapper.updateById(task);

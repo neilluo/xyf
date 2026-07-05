@@ -137,17 +137,30 @@ public class YouTubeUploader implements PlatformUploader {
                         "range=" + contentRange);
 
                 if (response.code() == 308) {
-                    return new UploadResult(true, offset + chunkSize, null);
+                    return new UploadResult(true, offset + chunkSize, null, null);
                 } else if (response.isSuccessful()) {
-                    return new UploadResult(true, totalSize, null);
+                    String respBody = response.body() != null ? response.body().string() : "";
+                    String videoId = null;
+                    if (!respBody.isBlank()) {
+                        try {
+                            Map<String, Object> json = OBJECT_MAPPER.readValue(respBody, Map.class);
+                            Object idObj = json.get("id");
+                            if (idObj != null) {
+                                videoId = idObj.toString();
+                            }
+                        } catch (Exception ex) {
+                            log.warn("Failed to parse YouTube upload response body: {}", ex.getMessage());
+                        }
+                    }
+                    return new UploadResult(true, totalSize, null, videoId);
                 } else {
                     String respBody = response.body() != null ? response.body().string() : "";
-                    return new UploadResult(false, offset, "Upload chunk failed: " + response.code() + " " + respBody);
+                    return new UploadResult(false, offset, "Upload chunk failed: " + response.code() + " " + respBody, null);
                 }
             }
         } catch (Exception e) {
             DigestLogger.logYouTube("uploadChunk", 0, System.currentTimeMillis() - start, "ERROR");
-            return new UploadResult(false, offset, e.getMessage());
+            return new UploadResult(false, offset, e.getMessage(), null);
         } finally {
             TraceContext.popSpan();
         }

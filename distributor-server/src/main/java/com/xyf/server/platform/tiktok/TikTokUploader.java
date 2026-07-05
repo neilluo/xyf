@@ -142,15 +142,15 @@ public class TikTokUploader implements PlatformUploader {
                         "range=" + contentRange);
 
                 if (response.isSuccessful()) {
-                    return new UploadResult(true, offset + chunkSize, null);
+                    return new UploadResult(true, offset + chunkSize, null, null);
                 } else {
                     String respBody = response.body() != null ? response.body().string() : "";
-                    return new UploadResult(false, offset, "TikTok upload chunk failed: " + response.code() + " " + respBody);
+                    return new UploadResult(false, offset, "TikTok upload chunk failed: " + response.code() + " " + respBody, null);
                 }
             }
         } catch (Exception e) {
             DigestLogger.logTikTok("uploadChunk", 0, System.currentTimeMillis() - start, "ERROR");
-            return new UploadResult(false, offset, e.getMessage());
+            return new UploadResult(false, offset, e.getMessage(), null);
         } finally {
             TraceContext.popSpan();
         }
