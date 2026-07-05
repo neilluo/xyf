@@ -32,6 +32,19 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
 
+# OSS配置
+oss:
+  endpoint: ${OSS_ENDPOINT:oss-ap-southeast-1.aliyuncs.com}
+  internal-endpoint: ${OSS_INTERNAL_ENDPOINT:oss-ap-southeast-1-internal.aliyuncs.com}
+  bucket: ${OSS_BUCKET:video-dist-sg}
+  region: ${OSS_REGION:ap-southeast-1}
+  access-key-id: ${OSS_ACCESS_KEY_ID:}
+  access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+  sts-endpoint: ${OSS_STS_ENDPOINT:sts.ap-southeast-1.aliyuncs.com}
+  sts-role-arn: ${OSS_STS_ROLE_ARN:}
+  sts-duration-seconds: 3600
+  upload-prefix: videos/
+
 # Actuator
 management:
   endpoints:
