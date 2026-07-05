@@ -101,7 +101,8 @@
 
     <appender name="ASYNC_ACCESS" class="ch.qos.logback.classic.AsyncAppender">
         <queueSize>1024</queueSize>
-        <discardingThreshold>256</discardingThreshold>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>true</neverBlock>
         <appender-ref ref="ACCESS_FILE"/>
     </appender>
 

@@ -42,8 +42,9 @@ public class PlatformAccount {
     @TableField(typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> extInfo;
 
-    @TableLogic
-    private Integer isDeleted;
+    /** 软删除：NULL=未删除，非NULL=删除时间戳 */
+    @TableLogic(value = "NULL", delval = "NOW()")
+    private LocalDateTime deletedAt;
 
     /** 状态: ACTIVE|EXPIRED|REVOKED */
     private String status;
@@ -86,8 +87,8 @@ public class PlatformAccount {
     public Map<String, Object> getExtInfo() { return extInfo; }
     public void setExtInfo(Map<String, Object> extInfo) { this.extInfo = extInfo; }
 
-    public Integer getIsDeleted() { return isDeleted; }
-    public void setIsDeleted(Integer isDeleted) { this.isDeleted = isDeleted; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
