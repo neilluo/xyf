@@ -9,6 +9,7 @@ import com.aliyuncs.auth.sts.AssumeRoleResponse;
 import com.aliyuncs.profile.DefaultProfile;
 import com.xyf.server.common.BusinessException;
 import com.xyf.server.common.constants.ErrorCode;
+import com.xyf.server.config.DynamicConfigService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -22,26 +23,28 @@ public class OssStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(OssStorageService.class);
 
-    private final OssProperties ossProperties;
+    private final DynamicConfigService configService;
     private OSS ossClient;
 
-    public OssStorageService(OssProperties ossProperties) {
-        this.ossProperties = ossProperties;
+    public OssStorageService(DynamicConfigService configService) {
+        this.configService = configService;
     }
 
     @PostConstruct
     public void init() {
-        String accessKeyId = ossProperties.getAccessKeyId();
-        if (ossProperties.getEndpoint() != null && accessKeyId != null && !accessKeyId.isBlank()) {
-            String endpoint = ossProperties.getInternalEndpoint() != null
-                    ? ossProperties.getInternalEndpoint()
-                    : ossProperties.getEndpoint();
+        String accessKeyId = configService.get("OSS", "access_key_id");
+        String endpoint = configService.get("OSS", "endpoint");
+        if (endpoint != null && !endpoint.isBlank() && accessKeyId != null && !accessKeyId.isBlank()) {
+            String internalEndpoint = configService.get("OSS", "internal_endpoint");
+            String effectiveEndpoint = (internalEndpoint != null && !internalEndpoint.isBlank())
+                    ? internalEndpoint : endpoint;
             this.ossClient = new OSSClientBuilder().build(
-                    endpoint,
+                    effectiveEndpoint,
                     accessKeyId,
-                    ossProperties.getAccessKeySecret()
+                    configService.get("OSS", "access_key_secret")
             );
-            log.info("OSS client initialized, bucket={}, region={}", ossProperties.getBucket(), ossProperties.getRegion());
+            log.info("OSS client initialized, bucket={}, region={}",
+                    configService.get("OSS", "bucket"), configService.get("OSS", "region"));
         } else {
             log.warn("OSS not configured (missing credentials), storage operations will be unavailable");
         }
@@ -56,18 +59,21 @@ public class OssStorageService {
 
     public StsCredentials generateStsToken(String sessionName) {
         try {
-            DefaultProfile profile = DefaultProfile.getProfile(
-                    ossProperties.getRegion(),
-                    ossProperties.getAccessKeyId(),
-                    ossProperties.getAccessKeySecret()
-            );
+            String region = configService.get("OSS", "region", "ap-southeast-1");
+            String accessKeyId = configService.get("OSS", "access_key_id");
+            String accessKeySecret = configService.get("OSS", "access_key_secret");
+
+            DefaultProfile profile = DefaultProfile.getProfile(region, accessKeyId, accessKeySecret);
             DefaultAcsClient stsClient = new DefaultAcsClient(profile);
 
             AssumeRoleRequest request = new AssumeRoleRequest();
-            request.setRoleArn(ossProperties.getStsRoleArn());
+            request.setRoleArn(configService.get("OSS", "sts_role_arn"));
             request.setRoleSessionName(sessionName);
-            request.setDurationSeconds((long) ossProperties.getStsDurationSeconds());
+            String duration = configService.get("OSS", "sts_duration_seconds", "3600");
+            request.setDurationSeconds(Long.parseLong(duration));
 
+            String bucket = configService.get("OSS", "bucket");
+            String uploadPrefix = configService.get("OSS", "upload_prefix", "videos/");
             String policy = String.format("""
                 {
                   "Version": "1",
@@ -77,7 +83,7 @@ public class OssStorageService {
                     "Resource": ["acs:oss:*:*:%s/%s*"]
                   }]
                 }
-                """, ossProperties.getBucket(), ossProperties.getUploadPrefix());
+                """, bucket, uploadPrefix);
             request.setPolicy(policy);
 
             AssumeRoleResponse response = stsClient.getAcsResponse(request);
@@ -88,10 +94,10 @@ public class OssStorageService {
                     credentials.getAccessKeySecret(),
                     credentials.getSecurityToken(),
                     credentials.getExpiration(),
-                    ossProperties.getBucket(),
-                    ossProperties.getRegion(),
-                    ossProperties.getEndpoint(),
-                    ossProperties.getUploadPrefix()
+                    bucket,
+                    region,
+                    configService.get("OSS", "endpoint"),
+                    uploadPrefix
             );
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.OSS_STS_TOKEN_FAILED,
@@ -101,18 +107,18 @@ public class OssStorageService {
 
     public InputStream getObjectStream(String ossKey) {
         ensureClientInitialized();
-        OSSObject object = ossClient.getObject(ossProperties.getBucket(), ossKey);
+        OSSObject object = ossClient.getObject(configService.get("OSS", "bucket"), ossKey);
         return object.getObjectContent();
     }
 
     public boolean doesObjectExist(String ossKey) {
         ensureClientInitialized();
-        return ossClient.doesObjectExist(ossProperties.getBucket(), ossKey);
+        return ossClient.doesObjectExist(configService.get("OSS", "bucket"), ossKey);
     }
 
     public long getObjectSize(String ossKey) {
         ensureClientInitialized();
-        return ossClient.getObjectMetadata(ossProperties.getBucket(), ossKey).getContentLength();
+        return ossClient.getObjectMetadata(configService.get("OSS", "bucket"), ossKey).getContentLength();
     }
 
     private void ensureClientInitialized() {

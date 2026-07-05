@@ -3,6 +3,7 @@ package com.xyf.server.service.auth;
 import com.xyf.server.common.BusinessException;
 import com.xyf.server.common.constants.BizConstants;
 import com.xyf.server.common.constants.ErrorCode;
+import com.xyf.server.config.DynamicConfigService;
 import com.xyf.server.domain.PlatformAccount;
 import com.xyf.server.domain.enums.AccountStatus;
 import com.xyf.server.domain.enums.PlatformType;
@@ -10,7 +11,6 @@ import com.xyf.server.log.TraceContext;
 import com.xyf.server.mapper.PlatformAccountMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -25,30 +25,16 @@ public class OAuthService {
 
     private final PlatformAccountMapper accountMapper;
     private final TokenEncryptService tokenEncryptService;
-
-    @Value("${oauth.youtube.client-id:}")
-    private String youtubeClientId;
-
-    @Value("${oauth.youtube.client-secret:}")
-    private String youtubeClientSecret;
-
-    @Value("${oauth.youtube.redirect-uri:}")
-    private String youtubeRedirectUri;
-
-    @Value("${oauth.tiktok.client-key:}")
-    private String tiktokClientKey;
-
-    @Value("${oauth.tiktok.client-secret:}")
-    private String tiktokClientSecret;
-
-    @Value("${oauth.tiktok.redirect-uri:}")
-    private String tiktokRedirectUri;
+    private final DynamicConfigService configService;
 
     private final ConcurrentHashMap<String, AuthEntry> authResults = new ConcurrentHashMap<>();
 
-    public OAuthService(PlatformAccountMapper accountMapper, TokenEncryptService tokenEncryptService) {
+    public OAuthService(PlatformAccountMapper accountMapper,
+                        TokenEncryptService tokenEncryptService,
+                        DynamicConfigService configService) {
         this.accountMapper = accountMapper;
         this.tokenEncryptService = tokenEncryptService;
+        this.configService = configService;
     }
 
     public Map<String, String> getAuthorizeUrl(String platform, String accountName) {
@@ -58,8 +44,8 @@ public class OAuthService {
         String authUrl;
         if (platformType == PlatformType.YOUTUBE) {
             authUrl = "https://accounts.google.com/o/oauth2/v2/auth"
-                    + "?client_id=" + youtubeClientId
-                    + "&redirect_uri=" + youtubeRedirectUri
+                    + "?client_id=" + configService.get("OAUTH_YOUTUBE", "client_id")
+                    + "&redirect_uri=" + configService.get("OAUTH_YOUTUBE", "redirect_uri")
                     + "&response_type=code"
                     + "&scope=https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube"
                     + "&access_type=offline"
@@ -67,10 +53,10 @@ public class OAuthService {
                     + "&state=" + state;
         } else {
             authUrl = "https://www.tiktok.com/v2/auth/authorize/"
-                    + "?client_key=" + tiktokClientKey
+                    + "?client_key=" + configService.get("OAUTH_TIKTOK", "client_key")
                     + "&scope=video.publish,video.upload"
                     + "&response_type=code"
-                    + "&redirect_uri=" + tiktokRedirectUri
+                    + "&redirect_uri=" + configService.get("OAUTH_TIKTOK", "redirect_uri")
                     + "&state=" + state;
         }
 

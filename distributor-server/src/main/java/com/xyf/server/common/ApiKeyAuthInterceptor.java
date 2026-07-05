@@ -1,29 +1,26 @@
 package com.xyf.server.common;
 
+import com.xyf.server.config.DynamicConfigService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-/**
- * API Key 认证拦截器
- * <p>
- * 检查请求头 Authorization: Bearer <api-key>
- * Key 从环境变量 VD_ADMIN_API_KEY 读取
- */
 @Component
 public class ApiKeyAuthInterceptor implements HandlerInterceptor {
 
     private static final String AUTH_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
 
-    @Value("${vd.admin.api-key:#{null}}")
-    private String adminApiKey;
+    private final DynamicConfigService configService;
+
+    public ApiKeyAuthInterceptor(DynamicConfigService configService) {
+        this.configService = configService;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 如果未配置 API Key，跳过认证（开发模式）
+        String adminApiKey = configService.get("SECURITY", "admin_api_key");
         if (adminApiKey == null || adminApiKey.isBlank()) {
             return true;
         }
