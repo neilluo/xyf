@@ -11,10 +11,12 @@ import com.xyf.server.mapper.DistributionTaskMapper;
 import com.xyf.server.platform.PlatformUploader;
 import com.xyf.server.service.TaskService;
 import com.xyf.server.service.VideoService;
+import com.xyf.server.storage.OssStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -29,15 +31,18 @@ public class DistributionOrchestrator {
     private final VideoService videoService;
     private final TaskService taskService;
     private final DistributionTaskMapper taskMapper;
+    private final OssStorageService ossStorageService;
     private final Map<String, PlatformUploader> uploaders;
 
     public DistributionOrchestrator(VideoService videoService,
                                     TaskService taskService,
                                     DistributionTaskMapper taskMapper,
+                                    OssStorageService ossStorageService,
                                     List<PlatformUploader> uploaderList) {
         this.videoService = videoService;
         this.taskService = taskService;
         this.taskMapper = taskMapper;
+        this.ossStorageService = ossStorageService;
         this.uploaders = uploaderList.stream()
                 .collect(Collectors.toMap(PlatformUploader::platform, Function.identity()));
     }
@@ -87,8 +92,10 @@ public class DistributionOrchestrator {
                 return;
             }
 
+            // 从 OSS 流式读取视频并上传到平台
+            InputStream videoStream = ossStorageService.getObjectStream(video.getOssKey());
             PlatformUploader.UploadResult uploadResult = uploader.uploadChunk(
-                    session, null, 0, fileSize, fileSize);
+                    session, videoStream, 0, fileSize, fileSize);
 
             if (!uploadResult.success()) {
                 failTask(task, "Upload failed: " + uploadResult.error());
