@@ -1,0 +1,25 @@
+# 生产环境配置 (新加坡 ECS)
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME:video_distributor}?useUnicode=true&characterEncoding=utf8mb4&useSSL=true&serverTimezone=Asia/Singapore&requireSSL=true
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+# Actuator - 生产环境绑定 localhost
+management:
+  server:
+    port: 8081
+    address: 127.0.0.1
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
