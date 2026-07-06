@@ -1,0 +1,65 @@
+# autopilot/knowledge/context.yaml
+# 正向约束：技术栈、设计原则、项目约束
+# Last updated: 2026-07-06 (recalibrated)
+
+project:
+  name: Video Distributor (xyf)
+  type: backend-api
+  tech_stack: "Java 17 / Spring Boot 3.2.5 / Maven / MySQL 8.0 (Flyway) / MyBatis-Plus 3.5.6 / 阿里云 OSS / picocli / OkHttp / Google YouTube SDK"
+  deployment: "新加坡单节点 ECS(2C4G) + RDS MySQL + OSS(ap-southeast-1), Docker Compose, GitHub Actions CI/CD → GHCR → SSH Deploy"
+  domain: "海外视频分发平台（美食博主 → YouTube/TikTok）"
+  modules:
+    - name: distributor-server
+      description: "Spring Boot 服务端（API + 调度 + 上传）"
+      package: com.xyf.server
+    - name: distributor-cli
+      description: "picocli CLI 客户端"
+      package: com.xyf.cli
+
+constraints:
+  # 基础设施约束
+  - "单节点架构: 新加坡ECS + RDS + OSS, 无K8s/负载均衡/MQ"
+  - "跨境限制: 中国大陆ACR不允许境外IP访问, 使用GHCR(全球可达)"
+  - "主账号禁止AssumeRole: STS必须通过RAM子用户调用"
+  - "RDS内网访问: 本地开发需SSH隧道, 白名单缺失也报ERROR 1045而非connection refused"
+  - "Google OAuth强制HTTPS域名: 需Let's Encrypt + Nginx反代"
+  - "YouTube Testing模式: 正式审核前token 7天过期"
+  - "TOKEN_ENCRYPT_KEY变更: 所有已加密token失效, 需重新OAuth授权"
+
+  # 技术约束
+  - "Flyway 9.x连MySQL 8.0需显式添加flyway-mysql依赖"
+  - "OSS本地开发: internal_endpoint必须清空, 否则连接VPC内网超时"
+  - "Alibaba Cloud Linux 4: 无apt-get, 用dnf + pip3 install certbot"
+  - "配置入库: 除DB连接和TOKEN_ENCRYPT_KEY外, 所有配置走system_config表(DynamicConfigService)"
+  - "Bean初始化顺序: 依赖DB配置的Bean用懒初始化, @PostConstruct时ApplicationRunner可能还未执行"
+
+design_principles:
+  - "流式IO: 视频处理全程InputStream, 单chunk=10MB(BizConstants.UPLOAD_CHUNK_SIZE), 禁止readAllBytes()"
+  - "ext_info必写traceId: 所有表的ext_info JSON字段必须包含当前请求的traceId"
+  - "EagleEye日志: 30位traceId + MDC透传 + TtlExecutors跨线程, 业务代码零侵入"
+  - "Token加密存储: OAuth token用AES-256-GCM加密, 密钥从环境变量读取"
+  - "STS临时凭证: CLI上传OSS必须用STS, 禁止持有长期AK/SK"
+  - "乐观锁防重复: taskMapper.claimTask(id) 原子UPDATE, 防并发拾取"
+  - "任务幂等性: Orchestrator.execute() 开头检查platformVideoId非空则跳过"
+  - "API统一响应: {success: true/false, data: {}, error: {code, message}}"
+  - "Flyway管理Schema: DDL变更只能通过db/migration/VX__name.sql, 禁止手动执行"
+  - "指数退避重试: delay=30s*2^(retryCount-1), cap=600s, maxRetry=3后永久FAILED"
+  - "孤儿任务恢复: ApplicationRunner启动时回滚UPLOADING/PROCESSING→PENDING"
+  - "scheduledAt延迟调度: 重试任务设未来时间, 调度器只查.le(scheduledAt, now())"
+
+rules:
+  explore:
+    - "涉及OAuth集成必须确认平台审核周期和Testing模式限制"
+    - "涉及新平台必须确认其API认证方式(OAuth/API Key/Service Account)"
+    - "涉及阿里云服务必须确认当前AK/SK的RAM权限范围"
+  spec:
+    - "所有新增表必须包含ext_info TEXT字段和is_deleted软删除字段"
+    - "新增配置项默认放system_config表, 非application.yml"
+    - "新增外部调用必须设计对应的digest日志"
+    - "任何写入操作必须考虑幂等性设计"
+    - "涉及异步任务必须说明故障恢复策略(ApplicationRunner回滚)"
+  tasks:
+    - "Task粒度: 每个Task的代码变更可独立编译通过"
+    - "Platform集成类Task: 必须包含Mock测试 + 真实API调用两个子步骤"
+    - "涉及DB Schema变更: Flyway migration必须作为独立Task的第一步"
+    - "涉及新@Component: 验证其被正确注入和调用(组件存在≠组件生效)"

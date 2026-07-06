@@ -24,8 +24,7 @@ docker build -t video-distributor:test -f distributor-server/Dockerfile .
 ```
 distributor-server/    → Spring Boot 服务端（API+调度+上传）
 distributor-cli/       → picocli CLI客户端
-db/migration/          → Flyway SQL脚本
-.harness/              → AI Agent治理体系
+autopilot/             → AI Agent知识库 + 工作流
 .github/workflows/     → CI/CD
 deploy/                → 部署配置
 ```
@@ -37,9 +36,11 @@ deploy/                → 部署配置
 | 技术方案 | [SPEC.md](./SPEC.md) |
 | 环境配置 | [setup.md](./setup.md) |
 | Task列表 | [tasks.md](./tasks.md) |
-| 代码架构 | [.harness/docs/architecture.md](.harness/docs/architecture.md) |
-| 编码规则 | [.harness/rules/](.harness/rules/) |
-| 经验教训 | [.harness/memory/learnings.md](.harness/memory/learnings.md) |
+| 代码架构 | [autopilot/docs/architecture.md](autopilot/docs/architecture.md) |
+| 编码规则 | [autopilot/knowledge/rules/](autopilot/knowledge/rules/) |
+| 经验教训 | [autopilot/knowledge/learnings.md](autopilot/knowledge/learnings.md) |
+| 知识库 | [autopilot/knowledge/knowledge-base.md](autopilot/knowledge/knowledge-base.md) |
+| 约束配置 | [autopilot/knowledge/context.yaml](autopilot/knowledge/context.yaml) |
 
 ## Critical Rules (Top 10)
 

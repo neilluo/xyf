@@ -24,6 +24,10 @@ deploy/.env
 logs/
 *.log
 
+# Legacy harness (migrated to autopilot/)
+harness/
+.harness/
+
 # Research files (large)
 video-distribution-platform-research.md
 server_bootstrap.log
