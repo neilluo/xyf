@@ -121,6 +121,13 @@ public class OssStorageService {
         return ossClient.getObjectMetadata(configService.get("OSS", "bucket"), ossKey).getContentLength();
     }
 
+    public void deleteObject(String ossKey) {
+        ensureClientInitialized();
+        String bucket = configService.get("OSS", "bucket");
+        ossClient.deleteObject(bucket, ossKey);
+        log.info("OSS object deleted: bucket={}, key={}", bucket, ossKey);
+    }
+
     private void ensureClientInitialized() {
         if (ossClient == null) {
             // 懒初始化：@PostConstruct 时 DynamicConfigService 可能还没加载 DB 配置

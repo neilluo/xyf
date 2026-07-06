@@ -32,17 +32,20 @@ public class DistributionOrchestrator {
     private final TaskService taskService;
     private final DistributionTaskMapper taskMapper;
     private final OssStorageService ossStorageService;
+    private final RetryStrategy retryStrategy;
     private final Map<String, PlatformUploader> uploaders;
 
     public DistributionOrchestrator(VideoService videoService,
                                     TaskService taskService,
                                     DistributionTaskMapper taskMapper,
                                     OssStorageService ossStorageService,
+                                    RetryStrategy retryStrategy,
                                     List<PlatformUploader> uploaderList) {
         this.videoService = videoService;
         this.taskService = taskService;
         this.taskMapper = taskMapper;
         this.ossStorageService = ossStorageService;
+        this.retryStrategy = retryStrategy;
         this.uploaders = uploaderList.stream()
                 .collect(Collectors.toMap(PlatformUploader::platform, Function.identity()));
     }
@@ -146,10 +149,7 @@ public class DistributionOrchestrator {
     }
 
     private void failTask(DistributionTask task, String error) {
-        task.setStatus(TaskStatus.FAILED);
-        task.setErrorMessage(error);
-        task.setCompletedAt(LocalDateTime.now());
-        taskMapper.updateById(task);
-        log.warn("Task failed: id={}, error={}", task.getId(), error);
+        retryStrategy.handleFailure(task, error);
+        log.warn("Task failed: id={}, retryCount={}, error={}", task.getId(), task.getRetryCount(), error);
     }
 }

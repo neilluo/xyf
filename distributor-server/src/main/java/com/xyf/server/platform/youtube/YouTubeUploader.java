@@ -230,4 +230,41 @@ public class YouTubeUploader implements PlatformUploader {
     public boolean validateToken(String accessToken) {
         return accessToken != null && !accessToken.isBlank();
     }
+
+    /**
+     * 删除 YouTube 视频（测试清理用）
+     */
+    public boolean deleteVideo(String videoId, PlatformAccount account) {
+        long start = System.currentTimeMillis();
+        TraceContext.pushSpan();
+        try {
+            String accessToken = tokenEncryptService.decrypt(account.getAccessToken());
+
+            Request request = new Request.Builder()
+                    .url("https://www.googleapis.com/youtube/v3/videos?id=" + videoId)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .delete()
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                DigestLogger.logYouTube("deleteVideo", response.code(), System.currentTimeMillis() - start,
+                        response.isSuccessful() ? "OK" : "FAIL");
+
+                if (response.code() == 204 || response.isSuccessful()) {
+                    log.info("YouTube video deleted successfully: videoId={}", videoId);
+                    return true;
+                } else {
+                    String body = response.body() != null ? response.body().string() : "";
+                    log.warn("YouTube video delete failed: videoId={}, code={}, body={}", videoId, response.code(), body);
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            DigestLogger.logYouTube("deleteVideo", 0, System.currentTimeMillis() - start, "ERROR:" + e.getMessage());
+            log.error("YouTube video delete error: videoId={}", videoId, e);
+            return false;
+        } finally {
+            TraceContext.popSpan();
+        }
+    }
 }

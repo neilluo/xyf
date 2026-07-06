@@ -47,3 +47,23 @@
 **Problem**: Google OAuth redirect_uri 不允许 http://公网IP，必须 https://域名  
 **Solution**: DNS A记录 → Nginx反代8080 → certbot签Let's Encrypt证书 → redirect_uri用 https://www.xyfkitchen.com/...  
 **Lesson**: 生产级 OAuth 集成必须有域名+HTTPS，开发阶段可用 http://localhost 但部署时必须切换
+
+## 2026-07-06 - [RetryStrategy未接入Orchestrator]
+**Problem**: RetryStrategy是独立@Component但从未被Orchestrator注入，failTask()直接标记FAILED无重试  
+**Solution**: Orchestrator注入RetryStrategy，failTask()改为调用retryStrategy.handleFailure()  
+**Lesson**: 独立组件必须验证其是否被正确注入和调用，组件存在≠组件生效
+
+## 2026-07-06 - [UPLOADING任务服务重启不恢复]
+**Problem**: 服务重启后，UPLOADING状态的任务不会被调度器重新拾取（调度器只查PENDING）  
+**Solution**: 目前需手动将UPLOADING状态reset为PENDING。可考虑启动时增加UPLOADING→PENDING的回滚逻辑  
+**Lesson**: 单节点调度器的故障恢复需要显式处理「进行中」状态的任务
+
+## 2026-07-06 - [本地测试OSS内网端点不可达]
+**Problem**: OssStorageService优先使用internal_endpoint，本地开发无法访问VPC内网  
+**Solution**: 通过API清除system_config中OSS.internal_endpoint配置，重启后自动fallback到公网endpoint  
+**Lesson**: 本地开发需确保OSS使用公网端点，生产环境使用内网端点节省流量费
+
+## 2026-07-06 - [多账号加密密钥不一致]
+**Problem**: platform_account表中不同账号的token可能用不同TOKEN_ENCRYPT_KEY加密（账号1-2用dev key，账号3用prod key）  
+**Solution**: 确认本地.env的TOKEN_ENCRYPT_KEY与生产一致；旧账号需重新授权或迁移  
+**Lesson**: TOKEN_ENCRYPT_KEY变更后，所有已加密token失效，需要重新OAuth授权

@@ -10,13 +10,15 @@
 - Let's Encrypt + Nginx 反代: Google OAuth 强制要求 HTTPS 域名 (Task: YouTube集成)
 - RAM子用户做STS: 主账号禁止AssumeRole (Task: OSS STS配置)
 - 懒初始化模式: @PostConstruct 执行时 DB 配置未加载 (Task: E2E测试)
+- RetryStrategy注入Orchestrator: 失败任务走指数退避重试而非直接标记FAILED (Task: 全面功能测试)
 
 ## 必须遵守的编码规则
 
 - Mock方法禁止进入生产: 骨架代码的mock必须在集成测试前替换 (出现2次: OAuthService + YouTubeUploader)
-- 分发任务幂等性: 基于platformVideoId结果凭证而非status状态字段 (出现1次: 4份重复视频)
+- 分发任务幂等性: 基于platformVideoId结果凭证而非 status状态字段 (出现1次: 4份重复视频)
 - Bean初始化顺序: 依赖DB配置的组件用懒初始化 (出现1次: OSS client null)
 - Token自动刷新: access_token 1小时过期,必须实现refresh_token自动续期 (出现1次: 401错误)
+- RetryStrategy必须被注入: 独立组件不足以生效,必须被调用方正确注入和使用 (出现1次: E2E测试)
 
 ## 已知坑点
 
@@ -26,6 +28,9 @@
 - ECS元数据 /latest/meta-data/security-group-ids 在Docker容器内404
 - Google OAuth redirect_uri 不接受 http://公网IP, 只接受 localhost 或 https://域名
 - 阿里云安全组默认不开放 80/443, certbot HTTP验证会失败
+- UPLOADING状态任务服务重启后不自动恢复(调度器只查PENDING)
+- 本地开发时OSS.internal_endpoint必须清空,否则连接VPC内网超时
+- TOKEN_ENCRYPT_KEY变更后所有已加密token失效,需重新OAuth授权
 
 ## 项目约束（Spec 生成时必须考虑）
 
@@ -35,3 +40,4 @@
 - OAuth Token加密: AES-256-GCM, 密钥从环境变量注入(鸡生蛋问题)
 - YouTube隐私: 上传默认private, 需手动或API改为public
 - 任务调度: DB轮询10秒 + 乐观锁拾取, 单线程池(4-8)
+- 任务重试: 指数退避30s−2m→600s(cap), maxRetry=3后永久失败
